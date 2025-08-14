@@ -1,0 +1,56 @@
+[
+    {
+      "companyName": "Alpine Manufacturing Solutions",
+      "industry": "Manufacturing",
+      "cloudSolutionInUse": ["SAP S/4HANA Cloud", "SAP Ariba"],
+  [
+    {
+      "companyName": "Alpine Manufacturing Solutions",
+      "industry": "Manufacturing",
+      "cloudSolutionInUse": ["SAP S/4HANA Cloud", "SAP Ariba"],
+      "customerNeeds": "We're struggling with our supply chain visibility and need help optimizing our procurement processes. Our team also requires training on the new S/4HANA features we haven't fully adopted yet. We're looking for ongoing performance monitoring to ensure our systems run smoothly during peak production periods.",
+      "budgetTier": "Advanced"
+    },
+    {
+      "companyName": "Meridian Financial Services",
+      "industry": "Financial Services",
+      "cloudSolutionInUse": ["SAP BTP", "SAP Analytics Cloud", "SAP Concur"],
+      "customerNeeds": "As a growing financial services firm, we need comprehensive security monitoring and compliance support for our SAP environment. We're also interested in leveraging advanced analytics to improve our risk management and would like guidance on integrating our expense management with our core financial systems.",
+      "budgetTier": "Max"
+    },
+    {
+      "companyName": "GreenTech Retail Group",
+      "industry": "Retail",
+      "cloudSolutionInUse": ["SAP Commerce Cloud", "SuccessFactors"],
+      "customerNeeds": "We need basic support for our e-commerce platform and HR system. Our main concerns are ensuring system uptime during busy shopping seasons and getting help with user adoption across our retail locations. We'd also appreciate quarterly health checks and access to self-service resources for common issues.",
+      "budgetTier": "Foundational"
+    },
+    {
+      "companyName": "Stellar Healthcare Network",
+      "industry": "Healthcare",
+      "cloudSolutionInUse": ["SAP S/4HANA Cloud", "SAP FieldGlass", "SAP Concur"],
+      "customerNeeds": "Our healthcare network is undergoing digital transformation and we need strategic guidance on optimizing our patient care workflows. We require 24/7 support for critical systems, advanced reporting capabilities for regulatory compliance, and help with integrating our contingent workforce management with our financial systems.",
+      "budgetTier": "Advanced"
+    },
+    {
+      "companyName": "Global Energy Dynamics",
+      "industry": "Energy & Utilities",
+      "cloudSolutionInUse": ["SAP BTP", "SAP S/4HANA Cloud", "SAP Analytics Cloud", "SAP Ariba"],
+      "customerNeeds": "As a multinational energy company, we need enterprise-level support with follow-the-sun coverage across our global operations. We're looking for strategic consulting on our digital transformation roadmap, executive-level advisory services, and custom innovation labs to explore emerging technologies like AI and IoT integration with our SAP landscape.",
+      "budgetTier": "Max"
+    }
+  ]'re struggling with our supply chain visibility and need help optimizing our procurement processes. Our team also requires training on the new S/4HANA features we haven't fully adopted yet. We're looking for ongoing performance monitoring to ensure our systems run smoothly during peak production periods.",
+      "budgetTier": "Advanced"
+    },
+    {
+      "companyName": "Meridian Financial Services",
+      "industry": "Financial Services",
+      "cloudSolutionInUse": ["SAP BTP", "SAP Analytics Cloud", "SAP Concur"],
+      "customerNeeds": "As a growing financial services firm, we need comprehensive security monitoring and compliance support for our SAP environment. We're also interested in leveraging advanced analytics to improve our risk management and would like guidance on integrating our expense management with our core financial systems.",
+      "budgetTier": "Max"
+    },
+    {
+      "companyName": "GreenTech Retail Group",
+      "industry": "Retail",
+      "cloudSolutionInUse": ["SAP Commerce Cloud", "SuccessFactors"],
+      "customerNeeds": "We
