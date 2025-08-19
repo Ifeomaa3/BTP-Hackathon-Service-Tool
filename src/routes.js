@@ -1,6 +1,6 @@
 // src/api/routes.js
 const express = require('express');
-const ServiceMatcher = require('../../../backend/service-matcher');
+const ServiceMatcher = require('../../backend/service-matcher');
 
 const router = express.Router();
 const matcher = new ServiceMatcher();
