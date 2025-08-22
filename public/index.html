@@ -1,11 +1,94 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Service Finder</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Service Finder (Simple)</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .service { border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; border-radius: 6px; }
+    h2 { margin-top: 0; }
+    ul { padding-left: 20px; }
+    label { display: block; margin-top: 10px; }
+    button { margin-top: 10px; padding: 6px 12px; }
+  </style>
 </head>
 <body>
-    <div id="root"></div>
+  <h1>Matched Services</h1>
+
+  <div>
+    <label>
+      Customer Needs:
+      <input type="text" id="needs" placeholder="e.g. basic support, monitoring" size="50">
+    </label>
+    <label>
+      Budget Tier:
+      <select id="budgetTier">
+        <option value="Foundational">Foundational</option>
+        <option value="Advanced">Advanced</option>
+        <option value="Max">Max</option>
+      </select>
+    </label>
+    <button onclick="loadServices()">Search</button>
+  </div>
+
+  <div id="results" style="margin-top:20px;">Enter needs and click search.</div>
+
+  <script>
+    async function loadServices() {
+      const needs = document.getElementById("needs").value || "basic support";
+      const budgetTier = document.getElementById("budgetTier").value;
+
+      try {
+        const response = await fetch("http://localhost:3001/match-services", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            companyName: "Demo Company",
+            customerNeeds: needs,
+            budgetTier: budgetTier
+          })
+        });
+
+        if (!response.ok) {
+          document.getElementById("results").textContent = "Error: " + response.status;
+          return;
+        }
+
+        const data = await response.json();
+        console.log("Response data:", data);
+
+        if (!data.recommendations || data.recommendations.length === 0) {
+          document.getElementById("results").textContent = "No services found.";
+          return;
+        }
+
+        let html = "";
+        data.recommendations.forEach(service => {
+          html += `
+            <div class="service">
+              <h2>${service.serviceName}</h2>
+              <p>${service.description}</p>
+              <p><strong>Category:</strong> ${service.category}</p>
+              <p><strong>Price:</strong> ${service.gRateOrPricingEstimate}</p>
+              <p><strong>Effort:</strong> ${service.estimatedEffortPersonDays} person-days</p>
+              ${service.entitlements && service.entitlements.length > 0 ? `
+                <strong>Included Entitlements:</strong>
+                <ul>
+                  ${service.entitlements.map(e => `<li>${e}</li>`).join("")}
+                </ul>
+              ` : ""}
+            </div>
+          `;
+        });
+
+        document.getElementById("results").innerHTML = html;
+
+      } catch (err) {
+        console.error("Error loading services:", err);
+        document.getElementById("results").textContent = "Error loading data.";
+      }
+    }
+  </script>
 </body>
 </html>

@@ -6,6 +6,7 @@ const App = () => {
   const [matchedServices, setMatchedServices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [expanded, setExpanded] = useState({}); // track expanded entitlements per service
 
   const handleInputChange = (event) => {
     setInput(event.target.value);
@@ -21,6 +22,7 @@ const App = () => {
 
     try {
       const response = await fetch('http://localhost:3001/match-services', {
+      //const response = await fetch(`${process.env.REACT_APP_API_URL}/match-services`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -42,7 +44,7 @@ const App = () => {
       setLoading(false);
     }
   };
-
+ 
   const getBudgetLimitText = (tier) => {
     switch (tier) {
       case 'Foundational':
@@ -56,10 +58,17 @@ const App = () => {
     }
   };
 
+  const toggleEntitlements = (index) => {
+    setExpanded((prev) => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
+  };
+
   return (
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
       <h1>Service Finder</h1>
-
+      <h1 style={{color: "red"}}>HELLO TEST</h1>
       <label htmlFor="input">Enter your service request:</label>
       <br />
       <textarea
@@ -105,16 +114,31 @@ const App = () => {
             key={idx}
             style={{
               border: '1px solid #ccc',
-              marginBottom: '10px',
-              padding: '10px',
-              borderRadius: '4px',
+              marginBottom: '15px',
+              padding: '15px',
+              borderRadius: '6px',
             }}
           >
             <h2>{service.serviceName}</h2>
-            <p>{service.description}</p>
+           
+            <p style={{ whiteSpace: 'pre-line' }}>{service.description}</p>
             <p><strong>Category:</strong> {service.category}</p>
             <p><strong>Price:</strong> {service.gRateOrPricingEstimate}</p>
             <p><strong>Effort:</strong> {service.estimatedEffortPersonDays} person-days</p>
+
+           
+            {service.entitlements && service.entitlements.length > 0 && (
+              <div style={{ marginTop: '10px' }}>
+                <strong>Included Entitlements:</strong>
+              
+                    <ul style={{ marginTop: '10px', paddingLeft: '20px' }}>
+                      {service.entitlements.map((ent, i) => (
+                        <li key={i}>{ent}</li>
+                      ))}
+                    </ul>
+                   
+               </div>
+            )}
           </div>
         ))}
       </div>
