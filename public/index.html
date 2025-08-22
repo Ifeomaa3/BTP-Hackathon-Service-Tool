@@ -11,6 +11,14 @@
     ul { padding-left: 20px; }
     label { display: block; margin-top: 10px; }
     button { margin-top: 10px; padding: 6px 12px; }
+    .sow-block { 
+      background: #f9f9f9; 
+      margin-top: 15px; 
+      padding: 10px; 
+      border-top: 1px solid #ccc; 
+      border-radius: 4px;
+    }
+    .sow-block h3 { margin-top: 0; }
   </style>
 </head>
 <body>
@@ -65,6 +73,7 @@
 
         let html = "";
         data.recommendations.forEach(service => {
+          const safeId = service.serviceName.replace(/\s+/g, '-');
           html += `
             <div class="service">
               <h2>${service.serviceName}</h2>
@@ -72,12 +81,42 @@
               <p><strong>Category:</strong> ${service.category}</p>
               <p><strong>Price:</strong> ${service.gRateOrPricingEstimate}</p>
               <p><strong>Effort:</strong> ${service.estimatedEffortPersonDays} person-days</p>
+              <p><strong>ROM Estimate:</strong> ${service.romEstimate || "N/A"}</p>
+
               ${service.entitlements && service.entitlements.length > 0 ? `
                 <strong>Included Entitlements:</strong>
                 <ul>
                   ${service.entitlements.map(e => `<li>${e}</li>`).join("")}
                 </ul>
               ` : ""}
+
+              <button onclick="toggleSOW('${safeId}')">View Statement of Work Summary</button>
+
+              <div id="sow-${safeId}" class="sow-block" style="display:none;">
+                <h3>Statement of Work (SOW)</h3>
+                <p><strong>Service Name:</strong> ${service.serviceName}</p>
+                <p><strong>Customer:</strong> Demo Company</p>
+                <p><strong>Budget Tier:</strong> ${data.budgetTier}</p>
+                
+                <h4>1. Objective</h4>
+                <p>${service.description}</p>
+
+                <h4>2. Scope of Services</h4>
+                <ul>
+                  ${(service.entitlements && service.entitlements.length > 0) 
+                    ? service.entitlements.map(e => `<li>${e}</li>`).join("") 
+                    : "<li>As described in service documentation.</li>"}
+                </ul>
+
+                <h4>3. Deliverables & Outcomes</h4>
+                <p>Deliverables include service setup, monitoring, and support aligned with SAP best practices.</p>
+
+                <h4>4. Duration & Effort</h4>
+                <p>${service.estimatedEffortPersonDays} person-days</p>
+
+                <h4>5. Commercials</h4>
+                <p>ROM Estimate: ${service.romEstimate || "N/A"}</p>
+              </div>
             </div>
           `;
         });
@@ -87,6 +126,15 @@
       } catch (err) {
         console.error("Error loading services:", err);
         document.getElementById("results").textContent = "Error loading data.";
+      }
+    }
+
+    function toggleSOW(id) {
+      const sowDiv = document.getElementById("sow-" + id);
+      if (sowDiv.style.display === "none") {
+        sowDiv.style.display = "block";
+      } else {
+        sowDiv.style.display = "none";
       }
     }
   </script>

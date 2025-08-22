@@ -10,22 +10,36 @@ class ServiceMatcher {
     const extractedKeywords = this.tokenize(customerProfile.customerNeeds);
     const matches = this.performKeywordMatching(extractedKeywords);
     const filtered = this.applyBusinessRules(matches, customerProfile);
-
+  
     const topMatches = filtered.slice(0, 5);
     const totalEffort = this.calculateTotalEffort(topMatches);
     const totalCost = this.calculateTotalCost(topMatches);
-
+  
+    // 👉 Enrich each service with ROM estimate
+    const enrichedMatches = topMatches.map(s => {
+      const rate = parseFloat((s.gRateOrPricingEstimate || "").replace(/[^0-9.]/g, "")) || 0;
+      const effort = s.estimatedEffortPersonDays || 0;
+      const total = rate * effort;
+  
+      return {
+        ...s,
+        romEstimate: total > 0 ? `£${total.toLocaleString()}` : "N/A"
+      };
+    });
+  
+    // 👉 Return enriched matches instead of topMatches
     return {
       customer: customerProfile.companyName,
       budgetTier: customerProfile.budgetTier,
-      recommendations: topMatches,
+      recommendations: enrichedMatches,
       analysis: { extractedKeywords },
-      explanation: 'LLM is disabled. Using keyword-based matching only.',
+      explanation: "LLM is disabled. Using keyword-based matching only.",
       totalEffortPDs: totalEffort,
       totalEstimatedCost: `£${totalCost.toLocaleString()}`,
-      scopeSummary: topMatches.map(s => s.serviceName)
+      scopeSummary: enrichedMatches.map(s => s.serviceName)
     };
   }
+  
 
   performKeywordMatching(keywords) {
     return this.services
