@@ -16,6 +16,9 @@ app.get("/", (req, res) => {
   res.send("✅ Service Matcher API is running!");
 });
 
+const exportPdf = require('./exportPdf');
+exportPdf(app);
+
 // POST endpoint for matching services
 app.post("/match-services", async (req, res) => {
   try {

@@ -22,7 +22,7 @@ function loadData() {
 }
 function initializeApp() {
     const servicesPortfolio = loadData();
-    if (servicesPortfolio) {
+    if (servicesPortfolio) {s
         console.log('SAP Services Portfolio loaded successfully.');
         // You can pass servicesPortfolio to other modules if needed
     }

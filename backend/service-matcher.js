@@ -121,10 +121,10 @@ class ServiceMatcher {
     const topMatches = filtered.slice(0, 5);
     const totalEffort = this.calculateTotalEffort(topMatches);
     const totalCost = this.calculateTotalCost(topMatches);
-
-    // Enrich with ROM + rationale
-    const recommendations = topMatches.map(s => {
-      const rate = parseFloat(String(s.gRateOrPricingEstimate || '').replace(/[^0-9.]/g, '')) || 0;
+  
+    // 👉 Enrich each service with ROM estimate
+    const enrichedMatches = topMatches.map(s => {
+      const rate = parseFloat((s.gRateOrPricingEstimate || "").replace(/[^0-9.]/g, "")) || 0;
       const effort = s.estimatedEffortPersonDays || 0;
       const rom = rate * effort;
       return {
@@ -137,15 +137,16 @@ class ServiceMatcher {
     return {
       status: 'ok',
       customer: customerProfile.companyName,
-      budgetTier: tier,
-      recommendations,
-      analysis: { tokens },
-      explanation: 'Rule-based engine with explainability (enhanced clarification).',
+      budgetTier: customerProfile.budgetTier,
+      recommendations: enrichedMatches,
+      analysis: { extractedKeywords },
+      explanation: "LLM is disabled. Using keyword-based matching only.",
       totalEffortPDs: totalEffort,
       totalEstimatedCost: `£${totalCost.toLocaleString()}`,
       scopeSummary: recommendations.map(s => s.serviceName),
     };
   }
+  
 
   performKeywordMatching(keywords) {
     return this.services

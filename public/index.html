@@ -3,45 +3,55 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Service Finder (Simple)</title>
+  <title>Service Finder</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    .service { border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; border-radius: 6px; }
-    h2 { margin-top: 0; }
+    body { font-family: Arial, sans-serif; margin: 20px; max-width: 900px; }
+    .service, .addon, .summary { border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; border-radius: 6px; background: #f9f9f9; }
+    h2, h3 { margin-top: 0; }
     ul { padding-left: 20px; }
     label { display: block; margin-top: 10px; }
-    button { margin-top: 10px; padding: 6px 12px; cursor: pointer; }
-    .note { font-size: 0.9em; color: #444; margin-top: 6px; }
-    .clarify { border: 1px dashed #999; padding: 12px; border-radius: 6px; margin-top: 16px; }
-    .sow { border-top: 1px dashed #aaa; margin-top: 10px; padding-top: 10px; font-size: 0.95em; color: #222; }
+    input, select { padding: 6px; margin-top: 5px; width: 100%; }
+    button { margin-top: 10px; padding: 8px 14px; margin-right: 8px; }
+    .sow-block { margin-top: 15px; padding: 10px; border-top: 1px solid #ccc; }
+    .error { color: red; }
   </style>
 </head>
 <body>
-  <h1>Matched Services</h1>
+
+  <h1>Service Finder</h1>
+
+  <label>
+    Customer Needs:
+    <input type="text" id="needs" placeholder="e.g. basic support, monitoring" />
+  </label>
+
+  <label>
+    Budget Tier:
+    <select id="budgetTier">
+      <option value="Foundational">Foundational</option>
+      <option value="Advanced" selected>Advanced</option>
+      <option value="Max">Max</option>
+    </select>
+  </label>
 
   <div>
-    <label>
-      Customer Needs:
-      <input type="text" id="needs" placeholder="e.g. deployment, security, HR cloud" size="50"/>
-    </label>
-    <label>
-      Budget Tier:
-      <select id="budgetTier">
-        <option value="Foundational">Foundational</option>
-        <option value="Advanced">Advanced</option>
-        <option value="Max">Max</option>
-      </select>
-    </label>
-    <button onclick="loadServices()">Search</button>
+    <button onclick="loadServices()">Find Services</button>
+    <button onclick="exportFile('pdf')">Export as PDF</button>
+    <button onclick="exportFile('pptx')">Export as PowerPoint</button>
   </div>
 
-  <div id="clarify" class="clarify" style="display:none;"></div>
-  <div id="results" style="margin-top:20px;">Enter needs and click search.</div>
+  <div id="status" style="margin-top: 20px;"></div>
+  <div id="results" style="margin-top: 20px;"></div>
 
   <script>
     async function loadServices() {
-      const needs = document.getElementById("needs").value || "basic support";
+      const needs = document.getElementById("needs").value.trim() || "basic support";
       const budgetTier = document.getElementById("budgetTier").value;
+      const resultsDiv = document.getElementById("results");
+      const statusDiv = document.getElementById("status");
+
+      resultsDiv.innerHTML = '';
+      statusDiv.textContent = 'Loading...';
 
       const clarifyBox = document.getElementById("clarify");
       clarifyBox.style.display = "none";
@@ -58,13 +68,10 @@
           })
         });
 
-        if (!response.ok) {
-          document.getElementById("results").textContent = "Error: " + response.status;
-          return;
-        }
+        if (!response.ok) throw new Error("API error: " + response.status);
 
         const data = await response.json();
-        console.log("Response data:", data);
+        console.log("API Response:", data);
 
         if (data.status === "needs_clarification" && Array.isArray(data.clarifyingQuestions)) {
           renderClarifyingQuestions(data.clarifyingQuestions);
@@ -73,100 +80,130 @@
         }
 
         if (!data.recommendations || data.recommendations.length === 0) {
-          document.getElementById("results").textContent = "No services found.";
+          statusDiv.textContent = "No services found.";
           return;
         }
 
-        let html = "";
-        data.recommendations.forEach((service, idx) => {
+        statusDiv.textContent = "";
+
+        // Matched Services
+        let html = `<h2>Matched Services</h2>`;
+        data.recommendations.forEach(service => {
+          const safeId = service.serviceName.replace(/\s+/g, '-');
           html += `
-            <div class="service" id="service-${idx}">
-              <h2>${service.serviceName}</h2>
+            <div class="service">
+              <h3>${service.serviceName}</h3>
               <p>${service.description}</p>
               <p><strong>Category:</strong> ${service.category}</p>
               <p><strong>Price:</strong> ${service.gRateOrPricingEstimate}</p>
               <p><strong>Effort:</strong> ${service.estimatedEffortPersonDays} person-days</p>
               <p><strong>ROM Estimate:</strong> ${service.romEstimate || "N/A"}</p>
 
-              ${service.entitlements && service.entitlements.length > 0 ? `
+              ${service.entitlements?.length ? `
                 <strong>Included Entitlements:</strong>
-                <ul>
-                  ${service.entitlements.map(e => `<li>${e}</li>`).join("")}
+                <ul>${service.entitlements.map(e => `<li>${e}</li>`).join("")}</ul>
+              ` : ""}
+
+              <button onclick="toggleSOW('${safeId}')">Toggle Statement of Work</button>
+              <div id="sow-${safeId}" class="sow-block" style="display:none;">
+                <h4>Statement of Work (SOW)</h4>
+                <p><strong>Service Name:</strong> ${service.serviceName}</p>
+                <p><strong>Customer:</strong> Demo Company</p>
+                <p><strong>Budget Tier:</strong> ${budgetTier}</p>
+
+                <h5>1. Objective</h5>
+                <p>${service.description}</p>
+
+                <h5>2. Scope of Services</h5>
+                <ul>${service.entitlements?.length 
+                  ? service.entitlements.map(e => `<li>${e}</li>`).join("") 
+                  : "<li>As described in service documentation.</li>"}
                 </ul>
-              ` : ""}
 
-              ${service.rationale ? `
-                <div class="note"><em>Why recommended?</em> ${service.rationale}</div>
-              ` : ""}
+                <h5>3. Deliverables & Outcomes</h5>
+                <p>Deliverables include setup, monitoring, and support aligned with SAP best practices.</p>
 
-              <button onclick="showSOW(${idx})">Show SOW</button>
-              <div id="sow-${idx}" class="sow" style="display:none;"></div>
+                <h5>4. Duration & Effort</h5>
+                <p>${service.estimatedEffortPersonDays} person-days</p>
+
+                <h5>5. Commercials</h5>
+                <p>ROM Estimate: ${service.romEstimate || "N/A"}</p>
+              </div>
             </div>
           `;
         });
 
-        document.getElementById("results").innerHTML = html;
+        // Add-ons
+        if (data.addOns?.length) {
+          html += `<h2>Recommended Add-ons</h2>`;
+          data.addOns.forEach(addon => {
+            html += `
+              <div class="addon">
+                <strong>${addon.name}</strong><br/>
+                ${addon.description}<br/>
+                <em>Roles:</em> ${addon.roles}<br/>
+                <em>Effort:</em> ${addon.estimatedEffort}
+              </div>
+            `;
+          });
+        }
+
+        // Scope Summary
+        if (data.scopeSummary?.length) {
+          html += `<h2>Statement of Work Summary</h2><div class="summary"><ul>`;
+          data.scopeSummary.forEach(item => {
+            html += `<li>${item}</li>`;
+          });
+          html += `</ul></div>`;
+        }
+
+        resultsDiv.innerHTML = html;
 
       } catch (err) {
-        console.error("Error loading services:", err);
-        document.getElementById("results").textContent = "Error loading data.";
+        console.error("Error:", err);
+        statusDiv.innerHTML = `<div class="error">Error: ${err.message}</div>`;
       }
     }
 
-    function renderClarifyingQuestions(questions) {
-      const clarifyBox = document.getElementById("clarify");
-      const needsInput = document.getElementById("needs");
-
-      let qHtml = `<strong>We need a bit more detail:</strong><br/><br/>`;
-      qHtml += `<form id="clarifyForm">`;
-      questions.forEach((q, i) => {
-        qHtml += `
-          <label><input type="checkbox" name="q${i}" value="${q.text.replace(/"/g, '&quot;')}">
-            ${q.text}
-          </label>`;
-      });
-      qHtml += `<button type="submit">Apply Answers</button>`;
-      qHtml += `</form>`;
-
-      clarifyBox.innerHTML = qHtml;
-      clarifyBox.style.display = "block";
-
-      document.getElementById("clarifyForm").onsubmit = (e) => {
-        e.preventDefault();
-        const form = e.target;
-        const chosen = [];
-        [...form.elements].forEach(el => {
-          if (el.type === 'checkbox' && el.checked) chosen.push(el.value);
-        });
-        if (chosen.length) {
-          needsInput.value = `${needsInput.value} ${chosen.join(' ')}`;
-        }
-        loadServices();
-      };
+    function toggleSOW(id) {
+      const el = document.getElementById("sow-" + id);
+      el.style.display = (el.style.display === "none") ? "block" : "none";
     }
 
-    function showSOW(idx) {
-      const sowDiv = document.getElementById(`sow-${idx}`);
-      const serviceDiv = document.getElementById(`service-${idx}`);
-      if (sowDiv.style.display === "none") {
-        const name = serviceDiv.querySelector("h2").textContent;
-        const category = serviceDiv.querySelector("p strong").nextSibling.textContent;
-        const price = serviceDiv.querySelector("p:nth-of-type(2)").textContent;
-        const effort = serviceDiv.querySelector("p:nth-of-type(3)").textContent;
-        const rom = serviceDiv.querySelector("p:nth-of-type(4)").textContent;
-        sowDiv.innerHTML = `
-          <strong>SOW Summary:</strong><br/>
-          Service: ${name}<br/>
-          ${category}<br/>
-          ${price}<br/>
-          ${effort}<br/>
-          ${rom}
-        `;
-        sowDiv.style.display = "block";
-      } else {
-        sowDiv.style.display = "none";
+    async function exportFile(format) {
+      const needs = document.getElementById("needs").value.trim() || "basic support";
+      const budgetTier = document.getElementById("budgetTier").value;
+      const statusDiv = document.getElementById("status");
+
+      const endpoint = format === 'pdf' ? 'export/pdf' : 'export/pptx';
+
+      try {
+        const response = await fetch(`http://localhost:3001/${endpoint}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            customerNeeds: needs,
+            budgetTier: budgetTier,
+            companyName: "Demo Company"
+          })
+        });
+
+        if (!response.ok) throw new Error(`${format.toUpperCase()} export failed`);
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ServiceProposal.${format}`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+      } catch (err) {
+        console.error("Export Error:", err);
+        statusDiv.innerHTML = `<div class="error">Error exporting ${format.toUpperCase()}: ${err.message}</div>`;
       }
     }
   </script>
+
 </body>
 </html>

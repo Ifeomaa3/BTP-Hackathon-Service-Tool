@@ -2,146 +2,158 @@ import React, { useState } from 'react';
 
 const App = () => {
   const [input, setInput] = useState('');
-  const [budgetTier, setBudgetTier] = useState('Advanced'); // default
   const [matchedServices, setMatchedServices] = useState([]);
+  const [addOns, setAddOns] = useState([]);
+  const [scopeSummary, setScopeSummary] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [expanded, setExpanded] = useState({}); // track expanded entitlements per service
 
-  const handleInputChange = (event) => {
-    setInput(event.target.value);
-  };
-
-  const handleBudgetChange = (event) => {
-    setBudgetTier(event.target.value);
-  };
-
-  const handleFindServices = async () => {
+  const handleSearch = async () => {
     setLoading(true);
     setError(null);
-
+    setMatchedServices([]);
+    setAddOns([]);
+    setScopeSummary([]);
     try {
       const response = await fetch('http://localhost:3001/match-services', {
-      //const response = await fetch(`${process.env.REACT_APP_API_URL}/match-services`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          companyName: 'Demo Company', // static or allow input
           customerNeeds: input,
-          budgetTier: budgetTier,
+          budgetTier: 'Advanced', // or let user select
+          companyName: 'Demo Company'
         }),
       });
-
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-
+      if (!response.ok) throw new Error('API error');
       const data = await response.json();
       setMatchedServices(data.recommendations || []);
-    } catch (error) {
-      setError('Failed to fetch services. Please try again later.');
+      setAddOns(data.addOns || []);
+      setScopeSummary(data.scopeSummary || []);
+    } catch (err) {
+      setError('Failed to fetch services.');
     } finally {
       setLoading(false);
     }
   };
- 
-  const getBudgetLimitText = (tier) => {
-    switch (tier) {
-      case 'Foundational':
-        return 'Max £500/day';
-      case 'Advanced':
-        return 'Max £750/day';
-      case 'Max':
-        return 'Max £1,200/day';
-      default:
-        return '';
+
+  // Export PDF
+  const handleExportPdf = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/export/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerNeeds: input,
+          budgetTier: 'Advanced',
+          companyName: 'Demo Company'
+        }),
+      });
+      if (!response.ok) throw new Error('PDF export failed');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ServiceProposal.pdf';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('Failed to export PDF.');
     }
   };
 
-  const toggleEntitlements = (index) => {
-    setExpanded((prev) => ({
-      ...prev,
-      [index]: !prev[index],
-    }));
+  // Export PowerPoint
+  const handleExportPptx = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/export/pptx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerNeeds: input,
+          budgetTier: 'Advanced',
+          companyName: 'Demo Company'
+        }),
+      });
+      if (!response.ok) throw new Error('PowerPoint export failed');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ServiceProposal.pptx';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('Failed to export PowerPoint.');
+    }
   };
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-      <h1>Service Finder</h1>
-      <h1 style={{color: "red"}}>HELLO TEST</h1>
-      <label htmlFor="input">Enter your service request:</label>
-      <br />
-      <textarea
-        id="input"
+    <div style={{ maxWidth: 700, margin: 'auto', padding: 20 }}>
+      <h2>Service Finder</h2>
+      <input
+        type="text"
         value={input}
-        onChange={handleInputChange}
-        rows="4"
-        style={{ width: '100%', marginTop: '8px' }}
-        placeholder="e.g. Help with procurement optimization and 24/7 support"
+        onChange={e => setInput(e.target.value)}
+        placeholder="Describe your service needs"
+        style={{ width: '80%', padding: 8 }}
       />
+      <button onClick={handleSearch} style={{ marginLeft: 10, padding: 8 }}>
+        Find Services
+      </button>
+      <button onClick={handleExportPdf} style={{ marginLeft: 10, padding: 8 }}>
+        Export as PDF
+      </button>
+      <button onClick={handleExportPptx} style={{ marginLeft: 10, padding: 8 }}>
+        Export as PowerPoint
+      </button>
+      {loading && <div>Loading...</div>}
+      {error && <div style={{ color: 'red' }}>{error}</div>}
 
-      <br /><br />
-
-      <label htmlFor="budgetTier">Select your budget tier:</label>
-      <br />
-      <select
-        id="budgetTier"
-        value={budgetTier}
-        onChange={handleBudgetChange}
-        style={{ marginTop: '8px', padding: '5px' }}
-      >
-        <option value="Foundational">Foundational</option>
-        <option value="Advanced">Advanced</option>
-        <option value="Max">Max</option>
-      </select>
-
-      <br /><br />
-      <button onClick={handleFindServices}>Find Services</button>
-
-      <br /><br />
-
-      <p>
-        <strong>Filtering services for:</strong> {budgetTier} Budget Tier (
-        {getBudgetLimitText(budgetTier)})
-      </p>
-
-      {loading && <p>Loading...</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-
+      <h3>Matched Services</h3>
       <div>
-        {matchedServices.map((service, idx) => (
-          <div
-            key={idx}
-            style={{
-              border: '1px solid #ccc',
-              marginBottom: '15px',
-              padding: '15px',
-              borderRadius: '6px',
-            }}
-          >
-            <h2>{service.serviceName}</h2>
-           
-            <p style={{ whiteSpace: 'pre-line' }}>{service.description}</p>
-            <p><strong>Category:</strong> {service.category}</p>
-            <p><strong>Price:</strong> {service.gRateOrPricingEstimate}</p>
-            <p><strong>Effort:</strong> {service.estimatedEffortPersonDays} person-days</p>
-
-           
-            {service.entitlements && service.entitlements.length > 0 && (
-              <div style={{ marginTop: '10px' }}>
-                <strong>Included Entitlements:</strong>
-              
-                    <ul style={{ marginTop: '10px', paddingLeft: '20px' }}>
-                      {service.entitlements.map((ent, i) => (
-                        <li key={i}>{ent}</li>
-                      ))}
-                    </ul>
-                   
-               </div>
+        {matchedServices.map(svc => (
+          <div key={svc.serviceName} style={{ border: '1px solid #ccc', borderRadius: 8, margin: 8, padding: 12 }}>
+            <div style={{ fontSize: 18, fontWeight: 'bold' }}>{svc.serviceName}</div>
+            <div>{svc.description}</div>
+            <div>Category: {svc.category}</div>
+            <div>Price: {svc.gRateOrPricingEstimate}</div>
+            <div>Effort: {svc.estimatedEffortPersonDays} person-days</div>
+            <div>ROM Estimate: {svc.romEstimate}</div>
+            {svc.entitlements && (
+              <ul>
+                {svc.entitlements.map((ent, idx) => (
+                  <li key={idx}>{ent}</li>
+                ))}
+              </ul>
             )}
           </div>
         ))}
       </div>
+
+      {addOns.length > 0 && (
+        <>
+          <h3>Recommended Add-ons</h3>
+          <ul>
+            {addOns.map((addon, idx) => (
+              <li key={idx}>
+                <strong>{addon.name}</strong>: {addon.description} <br />
+                <em>Roles:</em> {addon.roles} <br />
+                <em>Effort:</em> {addon.estimatedEffort}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {scopeSummary.length > 0 && (
+        <>
+          <h3>Statement of Work Summary</h3>
+          <ul>
+            {scopeSummary.map((point, idx) => (
+              <li key={idx}>{point}</li>
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 };
