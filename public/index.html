@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Service Finder (Simple)</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
@@ -10,15 +10,10 @@
     h2 { margin-top: 0; }
     ul { padding-left: 20px; }
     label { display: block; margin-top: 10px; }
-    button { margin-top: 10px; padding: 6px 12px; }
-    .sow-block { 
-      background: #f9f9f9; 
-      margin-top: 15px; 
-      padding: 10px; 
-      border-top: 1px solid #ccc; 
-      border-radius: 4px;
-    }
-    .sow-block h3 { margin-top: 0; }
+    button { margin-top: 10px; padding: 6px 12px; cursor: pointer; }
+    .note { font-size: 0.9em; color: #444; margin-top: 6px; }
+    .clarify { border: 1px dashed #999; padding: 12px; border-radius: 6px; margin-top: 16px; }
+    .sow { border-top: 1px dashed #aaa; margin-top: 10px; padding-top: 10px; font-size: 0.95em; color: #222; }
   </style>
 </head>
 <body>
@@ -27,7 +22,7 @@
   <div>
     <label>
       Customer Needs:
-      <input type="text" id="needs" placeholder="e.g. basic support, monitoring" size="50">
+      <input type="text" id="needs" placeholder="e.g. deployment, security, HR cloud" size="50"/>
     </label>
     <label>
       Budget Tier:
@@ -40,12 +35,17 @@
     <button onclick="loadServices()">Search</button>
   </div>
 
+  <div id="clarify" class="clarify" style="display:none;"></div>
   <div id="results" style="margin-top:20px;">Enter needs and click search.</div>
 
   <script>
     async function loadServices() {
       const needs = document.getElementById("needs").value || "basic support";
       const budgetTier = document.getElementById("budgetTier").value;
+
+      const clarifyBox = document.getElementById("clarify");
+      clarifyBox.style.display = "none";
+      clarifyBox.innerHTML = "";
 
       try {
         const response = await fetch("http://localhost:3001/match-services", {
@@ -66,16 +66,21 @@
         const data = await response.json();
         console.log("Response data:", data);
 
+        if (data.status === "needs_clarification" && Array.isArray(data.clarifyingQuestions)) {
+          renderClarifyingQuestions(data.clarifyingQuestions);
+          document.getElementById("results").textContent = "Waiting for clarification…";
+          return;
+        }
+
         if (!data.recommendations || data.recommendations.length === 0) {
           document.getElementById("results").textContent = "No services found.";
           return;
         }
 
         let html = "";
-        data.recommendations.forEach(service => {
-          const safeId = service.serviceName.replace(/\s+/g, '-');
+        data.recommendations.forEach((service, idx) => {
           html += `
-            <div class="service">
+            <div class="service" id="service-${idx}">
               <h2>${service.serviceName}</h2>
               <p>${service.description}</p>
               <p><strong>Category:</strong> ${service.category}</p>
@@ -90,33 +95,12 @@
                 </ul>
               ` : ""}
 
-              <button onclick="toggleSOW('${safeId}')">View Statement of Work Summary</button>
+              ${service.rationale ? `
+                <div class="note"><em>Why recommended?</em> ${service.rationale}</div>
+              ` : ""}
 
-              <div id="sow-${safeId}" class="sow-block" style="display:none;">
-                <h3>Statement of Work (SOW)</h3>
-                <p><strong>Service Name:</strong> ${service.serviceName}</p>
-                <p><strong>Customer:</strong> Demo Company</p>
-                <p><strong>Budget Tier:</strong> ${data.budgetTier}</p>
-                
-                <h4>1. Objective</h4>
-                <p>${service.description}</p>
-
-                <h4>2. Scope of Services</h4>
-                <ul>
-                  ${(service.entitlements && service.entitlements.length > 0) 
-                    ? service.entitlements.map(e => `<li>${e}</li>`).join("") 
-                    : "<li>As described in service documentation.</li>"}
-                </ul>
-
-                <h4>3. Deliverables & Outcomes</h4>
-                <p>Deliverables include service setup, monitoring, and support aligned with SAP best practices.</p>
-
-                <h4>4. Duration & Effort</h4>
-                <p>${service.estimatedEffortPersonDays} person-days</p>
-
-                <h4>5. Commercials</h4>
-                <p>ROM Estimate: ${service.romEstimate || "N/A"}</p>
-              </div>
+              <button onclick="showSOW(${idx})">Show SOW</button>
+              <div id="sow-${idx}" class="sow" style="display:none;"></div>
             </div>
           `;
         });
@@ -129,9 +113,55 @@
       }
     }
 
-    function toggleSOW(id) {
-      const sowDiv = document.getElementById("sow-" + id);
+    function renderClarifyingQuestions(questions) {
+      const clarifyBox = document.getElementById("clarify");
+      const needsInput = document.getElementById("needs");
+
+      let qHtml = `<strong>We need a bit more detail:</strong><br/><br/>`;
+      qHtml += `<form id="clarifyForm">`;
+      questions.forEach((q, i) => {
+        qHtml += `
+          <label><input type="checkbox" name="q${i}" value="${q.text.replace(/"/g, '&quot;')}">
+            ${q.text}
+          </label>`;
+      });
+      qHtml += `<button type="submit">Apply Answers</button>`;
+      qHtml += `</form>`;
+
+      clarifyBox.innerHTML = qHtml;
+      clarifyBox.style.display = "block";
+
+      document.getElementById("clarifyForm").onsubmit = (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const chosen = [];
+        [...form.elements].forEach(el => {
+          if (el.type === 'checkbox' && el.checked) chosen.push(el.value);
+        });
+        if (chosen.length) {
+          needsInput.value = `${needsInput.value} ${chosen.join(' ')}`;
+        }
+        loadServices();
+      };
+    }
+
+    function showSOW(idx) {
+      const sowDiv = document.getElementById(`sow-${idx}`);
+      const serviceDiv = document.getElementById(`service-${idx}`);
       if (sowDiv.style.display === "none") {
+        const name = serviceDiv.querySelector("h2").textContent;
+        const category = serviceDiv.querySelector("p strong").nextSibling.textContent;
+        const price = serviceDiv.querySelector("p:nth-of-type(2)").textContent;
+        const effort = serviceDiv.querySelector("p:nth-of-type(3)").textContent;
+        const rom = serviceDiv.querySelector("p:nth-of-type(4)").textContent;
+        sowDiv.innerHTML = `
+          <strong>SOW Summary:</strong><br/>
+          Service: ${name}<br/>
+          ${category}<br/>
+          ${price}<br/>
+          ${effort}<br/>
+          ${rom}
+        `;
         sowDiv.style.display = "block";
       } else {
         sowDiv.style.display = "none";
