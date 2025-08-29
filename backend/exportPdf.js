@@ -1,34 +1,35 @@
 // src/api/exportPdf.js
 
-const { jsPDF } = require("jspdf");
-const PptxGenJS = require("pptxgenjs"); // PowerPoint generation library
+// Patch jsPDF for Node
+global.window = { document: { createElementNS: () => ({}) } };
+global.navigator = {};
+global.btoa = () => {};
+
+const { jsPDF } = require("jspdf/dist/jspdf.node.min");
+const PptxGenJS = require("pptxgenjs");
 const path = require('path');
-const fs = require('fs');
 
 module.exports = (app) => {
-  app.post('/export', (req, res) => {
+  app.post('/export', async (req, res) => {
     try {
       const { customerProfile, matchedServices, addOns, format } = req.body;
 
-      // Check the requested format (PDF or PowerPoint)
       if (format === "pdf") {
-        // Generate PDF
-        generatePdf(customerProfile, matchedServices, addOns, res);
+        await generatePdf(customerProfile, matchedServices, addOns, res);
       } else if (format === "pptx") {
-        // Generate PowerPoint
-        generatePptx(customerProfile, matchedServices, addOns, res);
+        await generatePptx(customerProfile, matchedServices, addOns, res);
       } else {
         res.status(400).json({ error: "Invalid format. Please specify 'pdf' or 'pptx'." });
       }
     } catch (error) {
-      console.error(error);
+      console.error("Export error:", error);
       res.status(500).json({ error: "Error generating document." });
     }
   });
 };
 
-// Generate PDF using jsPDF
-function generatePdf(customerProfile, matchedServices, addOns, res) {
+// 🧾 Generate PDF using jsPDF (server-compatible)
+async function generatePdf(customerProfile, matchedServices, addOns, res) {
   const doc = new jsPDF();
 
   // Title
@@ -43,27 +44,30 @@ function generatePdf(customerProfile, matchedServices, addOns, res) {
   // Recommendations
   doc.text("Service Recommendations:", 20, 60);
   matchedServices.forEach((service, idx) => {
-    doc.text(`Service: ${service.serviceName}`, 20, 70 + (10 * idx));
-    doc.text(`Description: ${service.description}`, 20, 80 + (10 * idx));
+    const y = 70 + (idx * 20);
+    doc.text(`Service: ${service.serviceName}`, 20, y);
+    doc.text(`Description: ${service.description}`, 20, y + 10);
   });
 
   // Add-Ons
-  doc.text("Additional Add-Ons:", 20, 90 + (10 * matchedServices.length));
+  const addOnStartY = 80 + matchedServices.length * 20;
+  doc.text("Additional Add-Ons:", 20, addOnStartY);
   addOns.forEach((addOn, idx) => {
-    doc.text(`Add-On: ${addOn.name}`, 20, 100 + (10 * matchedServices.length + idx));
-    doc.text(`Description: ${addOn.description}`, 20, 110 + (10 * matchedServices.length + idx));
+    const y = addOnStartY + 10 + (idx * 20);
+    doc.text(`Add-On: ${addOn.name}`, 20, y);
+    doc.text(`Description: ${addOn.description}`, 20, y + 10);
   });
 
-  // Export the document as a PDF
-  const pdfPath = path.join(__dirname, '../data/proposal.pdf');
-  doc.save(pdfPath);
+  // Output PDF as buffer and send
+  const pdfBuffer = doc.output("arraybuffer");
 
-  // Send file as response
-  res.sendFile(pdfPath);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'attachment; filename="proposal.pdf"');
+  res.send(Buffer.from(pdfBuffer));
 }
 
-// Generate PowerPoint using PptxGenJS
-function generatePptx(customerProfile, matchedServices, addOns, res) {
+// 📊 Generate PowerPoint using PptxGenJS (streaming)
+async function generatePptx(customerProfile, matchedServices, addOns, res) {
   const pptx = new PptxGenJS();
 
   // Slide 1: Title Slide
@@ -79,23 +83,27 @@ function generatePptx(customerProfile, matchedServices, addOns, res) {
   slide = pptx.addSlide();
   slide.addText("Service Recommendations:", { x: 1, y: 1, fontSize: 18 });
   matchedServices.forEach((service, idx) => {
-    slide.addText(`${service.serviceName}: ${service.description}`, { x: 1, y: 1.5 + (idx * 0.5), fontSize: 14 });
+    slide.addText(`${service.serviceName}: ${service.description}`, {
+      x: 1,
+      y: 1.5 + (idx * 0.5),
+      fontSize: 14
+    });
   });
 
   // Slide 4: Add-Ons
   slide = pptx.addSlide();
   slide.addText("Additional Add-Ons:", { x: 1, y: 1, fontSize: 18 });
   addOns.forEach((addOn, idx) => {
-    slide.addText(`${addOn.name}: ${addOn.description}`, { x: 1, y: 1.5 + (idx * 0.5), fontSize: 14 });
+    slide.addText(`${addOn.name}: ${addOn.description}`, {
+      x: 1,
+      y: 1.5 + (idx * 0.5),
+      fontSize: 14
+    });
   });
 
-  // Export the document as a PowerPoint file
-  const pptxPath = path.join(__dirname, '../data/proposal.pptx');
-  pptx.writeFile({ fileName: pptxPath }).then(() => {
-    // Send the PowerPoint file to the client
-    res.sendFile(pptxPath);
-  }).catch((error) => {
-    console.error(error);
-    res.status(500).json({ error: "Error generating PowerPoint." });
-  });
+  // Stream PPTX to client
+  const pptxBuffer = await pptx.stream();
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+  res.setHeader('Content-Disposition', 'attachment; filename="proposal.pptx"');
+  res.send(pptxBuffer);
 }
