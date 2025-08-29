@@ -482,6 +482,7 @@
 
         // Clarification
         if (data.status === "needs_clarification" && Array.isArray(data.clarifyingQuestions)) {
+          console.log("Clarifying questions received:", data.clarifyingQuestions);
           renderClarifyingQuestions(data.clarifyingQuestions);
           resultsDiv.innerHTML = '<p class="results-intro">Waiting for clarification…</p>';
           return;
@@ -581,10 +582,16 @@
       let qHtml = `<strong>We need a bit more detail:</strong><br/><br/><form id="clarifyForm">`;
       
       questions.forEach((q, i) => {
-        const questionText = q.text;
+        // Safety check for question structure
+        const questionText = q?.text || q?.question || (typeof q === 'string' ? q : '');
+        
+        if (!questionText) {
+          console.warn('Skipping invalid question:', q);
+          return;
+        }
         
         // Handle different question types based on content
-        if (questionText.includes("deployment support or ongoing application operations")) {
+        if (questionText.toLowerCase().includes("deployment support") && questionText.toLowerCase().includes("ongoing")) {
           qHtml += `
             <div class="form-group">
               <label>${questionText}</label>
@@ -594,7 +601,7 @@
               </div>
             </div>
           `;
-        } else if (questionText.includes("business area")) {
+        } else if (questionText.toLowerCase().includes("business area") || questionText.toLowerCase().includes("area of operations")) {
           qHtml += `
             <div class="form-group">
               <label>${questionText}</label>
@@ -607,7 +614,7 @@
               </select>
             </div>
           `;
-        } else if (questionText.includes("one region or global")) {
+        } else if (questionText.toLowerCase().includes("region") && (questionText.toLowerCase().includes("global") || questionText.toLowerCase().includes("multi"))) {
           qHtml += `
             <div class="form-group">
               <label>${questionText}</label>
@@ -617,7 +624,7 @@
               </div>
             </div>
           `;
-        } else if (questionText.includes("one-off project or ongoing")) {
+        } else if (questionText.toLowerCase().includes("one-off") && questionText.toLowerCase().includes("ongoing")) {
           qHtml += `
             <div class="form-group">
               <label>${questionText}</label>
@@ -706,20 +713,39 @@
       if (!serviceDiv) return;
 
       const name = serviceDiv.querySelector("h3").textContent;
+      const description = serviceDiv.querySelector(".service-description").textContent;
       const budgetTier = document.getElementById("budgetTier").value;
+      const entitlements = serviceDiv.dataset.entitlements ? serviceDiv.dataset.entitlements.split('|') : [];
+      
+      // Get metrics
+      const metrics = serviceDiv.querySelectorAll(".metric-value");
+      const price = metrics[0]?.textContent || "";
+      const effort = metrics[1]?.textContent || "";
+      const rom = metrics[2]?.textContent || "";
 
-      const endpoint = format === 'pdf' ? 'export/pdf' : 'export/pptx';
+      // Create the data structure that matches your backend expectations
+      const exportData = {
+        customerProfile: {
+          companyName: "Demo Company",
+          budgetTier: budgetTier
+        },
+        matchedServices: [{
+          serviceName: name,
+          description: description,
+          gRateOrPricingEstimate: price,
+          estimatedEffortPersonDays: effort,
+          romEstimate: rom,
+          entitlements: entitlements
+        }],
+        addOns: [], // You can populate this if you have add-ons data
+        format: format
+      };
 
       try {
-        const response = await fetch(`http://localhost:3001/${endpoint}`, {
+        const response = await fetch(`http://localhost:3001/export`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            customerNeeds: name, 
-            budgetTier, 
-            companyName: "Demo Company",
-            serviceName: name
-          })
+          body: JSON.stringify(exportData)
         });
 
         if (!response.ok) throw new Error(`${format.toUpperCase()} export failed`);
