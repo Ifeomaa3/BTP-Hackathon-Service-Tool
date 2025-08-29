@@ -139,11 +139,11 @@ class ServiceMatcher {
       customer: customerProfile.companyName,
       budgetTier: customerProfile.budgetTier,
       recommendations: enrichedMatches,
-      analysis: { extractedKeywords },
+      analysis: { extractedKeywords: tokens },
       explanation: "LLM is disabled. Using keyword-based matching only.",
       totalEffortPDs: totalEffort,
       totalEstimatedCost: `£${totalCost.toLocaleString()}`,
-      scopeSummary: recommendations.map(s => s.serviceName),
+      scopeSummary: enrichedMatches.map(s => s.serviceName),
     };
   }
   
